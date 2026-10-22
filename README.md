@@ -66,11 +66,11 @@ Các container dùng tiền tố `recipe_v2_` để không đụng tên containe
 
 | Thành phần | URL | Đăng nhập |
 |---|---|---|
-| Website | http://localhost:8080 | Không bắt buộc |
-| Quản trị Recipe | http://localhost:8080/admin.php | Email và mật khẩu lấy từ `ADMIN_EMAIL` / `ADMIN_PASSWORD` trong `.env` (được khởi tạo ở lần kết nối DB đầu tiên) |
-| phpMyAdmin | http://localhost:8081 | Server `mysql`, user `MYSQL_USER`, mật khẩu `MYSQL_PASSWORD` |
-| Prometheus | http://localhost:9090 | Chỉ mở trên máy local |
-| Grafana | http://localhost:3000 | `GRAFANA_USER` / `GRAFANA_PASSWORD` trong `.env` |
+| Website | http://localhost:8082 | Không bắt buộc |
+| Quản trị Recipe | http://localhost:8082/admin.php | Email và mật khẩu lấy từ `ADMIN_EMAIL` / `ADMIN_PASSWORD` trong `.env` (được khởi tạo ở lần kết nối DB đầu tiên) |
+| phpMyAdmin | http://localhost:8083 | Server `mysql`, user `MYSQL_USER`, mật khẩu `MYSQL_PASSWORD` |
+| Prometheus | http://localhost:9091 | Chỉ mở trên máy local |
+| Grafana | http://localhost:3001 | `GRAFANA_USER` / `GRAFANA_PASSWORD` trong `.env` |
 
 Các cổng trên được bind vào `127.0.0.1` để chỉ máy local truy cập. Không publish trực tiếp MySQL, Loki, Alloy hay các exporter ra host.
 
@@ -99,7 +99,7 @@ Các cổng trên được bind vào `127.0.0.1` để chỉ máy local truy c�
 
 ## 7. Kiểm tra Prometheus
 
-Mở `http://localhost:9090/targets`. Các target chính cần ở trạng thái **UP**:
+Mở `http://localhost:9091/targets`. Các target chính cần ở trạng thái **UP**:
 
 - `prometheus`: chính Prometheus.
 - `recipe-app`: endpoint `/metrics` của ứng dụng; Nginx chỉ cho phép IP nội bộ cố định của Prometheus (`172.30.240.10`). Truy cập từ trình duyệt host phải bị từ chối.
@@ -154,13 +154,13 @@ Chạy trên PowerShell:
 docker compose ps
 
 # Kiểm tra HTTP 200 và security headers
-curl.exe -I http://localhost:8080
+curl.exe -I http://localhost:8082
 
 # Health endpoint
-curl.exe -i http://localhost:8080/health
+curl.exe -i http://localhost:8082/health
 
 # Kiểm tra endpoint metrics từ máy host có thể bị chặn bởi Nginx (đây là chủ đích); Prometheus mới là client nội bộ
-curl.exe -i http://localhost:8080/metrics
+curl.exe -i http://localhost:8082/metrics
 
 # Kiểm tra log liên quan đến app/Nginx
 docker compose logs --tail=100 app nginx alloy loki prometheus grafana
@@ -170,25 +170,38 @@ Endpoint `/metrics` chỉ cho phép Prometheus tại IP Docker cố định `172
 
 ## 10. Git và GitHub
 
-Nếu thư mục hiện tại đã được `git init`, không cần chạy lại. Trước khi commit, kiểm tra không có `.env` trong danh sách:
+Repository của dự án: https://github.com/nvhhoang/recipe_project_de29_v2
+
+Kiểm tra các thay đổi trước khi commit:
 
 ```powershell
 git status --short
-git add .
+git diff --check
+git check-ignore .env
+```
+
+Không đưa `.env`, mật khẩu, log hoặc các file backup vào Git. Chỉ thêm những file dự án cần cập nhật sau khi đã kiểm tra danh sách:
+
+```powershell
+git add README.md
 git diff --cached --check
-git status --short
+git diff --cached
 ```
 
-Nếu chưa có repository GitHub, hãy tạo một repository trống trên GitHub rồi thay chuỗi `URL_REPOSITORY_GITHUB` bằng URL repo thật của bạn (không gõ dấu ngoặc nhọn):
+Nếu nội dung đã đúng, tạo commit và đẩy lên repository hiện có:
 
 ```powershell
-git commit -m "Build Recipe website with monitoring stack"
-git branch -M main
-git remote add origin https://github.com/TEN_TAI_KHOAN/TEN_REPOSITORY.git
-git push -u origin main
+git commit -m "Update Recipe project README"
+git push origin main
 ```
 
-Thay URL ví dụ bằng URL repository thực tế của bạn. Nếu remote `origin` đã tồn tại, kiểm tra bằng `git remote -v` trước khi thêm mới.
+Nếu Git báo không có gì để commit, kiểm tra `git status --short`; không cần tạo commit mới. Nếu nhánh hiện tại không phải `main`, kiểm tra bằng `git branch --show-current` trước khi push.
+
+Lưu ý bảo mật:
+
+- `.env` chứa cấu hình và mật khẩu riêng, không được commit.
+- `.env.example` chỉ chứa giá trị mẫu, không chứa mật khẩu thật.
+- Kiểm tra `git status --short` và `git diff --cached` trước khi commit.
 
 ## 11. Dừng và đặt lại dữ liệu
 
