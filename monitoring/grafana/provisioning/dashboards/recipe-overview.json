@@ -1,0 +1,23 @@
+{
+  "uid": "recipe-de29-overview",
+  "title": "Recipe DE29 - System Overview",
+  "tags": ["recipe", "de29", "coursework"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {"id":1,"type":"stat","title":"Prometheus Targets Up","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum(up)","refId":"A"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"orientation":"auto","colorMode":"value","graphMode":"area","justifyMode":"center"},"fieldConfig":{"defaults":{"thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"green","value":3}]}}}},
+    {"id":2,"type":"stat","title":"Recipe Count","gridPos":{"x":6,"y":0,"w":6,"h":4},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"recipe_recipes_total","refId":"A"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"orientation":"auto","colorMode":"value","graphMode":"area","justifyMode":"center"}},
+    {"id":3,"type":"stat","title":"Published Recipes","gridPos":{"x":12,"y":0,"w":6,"h":4},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"recipe_published_recipes_total","refId":"A"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"orientation":"auto","colorMode":"value","graphMode":"area","justifyMode":"center"}},
+    {"id":4,"type":"stat","title":"MySQL Exporter Up","gridPos":{"x":18,"y":0,"w":6,"h":4},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"mysql_up","refId":"A"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"orientation":"auto","colorMode":"value","graphMode":"area","justifyMode":"center"}},
+    {"id":5,"type":"timeseries","title":"Nginx Active Connections","gridPos":{"x":0,"y":4,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"nginx_connections_active","legendFormat":"active","refId":"A"},{"expr":"nginx_connections_waiting","legendFormat":"waiting","refId":"B"}],"fieldConfig":{"defaults":{"unit":"short"}},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}}},
+    {"id":6,"type":"timeseries","title":"MySQL Connected Threads","gridPos":{"x":12,"y":4,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"mysql_global_status_threads_connected","legendFormat":"connected","refId":"A"}],"fieldConfig":{"defaults":{"unit":"short"}},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}}},
+    {"id":7,"type":"logs","title":"Nginx Access / Error Logs (Loki)","gridPos":{"x":0,"y":12,"w":24,"h":8},"datasource":{"type":"loki","uid":"loki"},"targets":[{"expr":"{job=~\"nginx|recipe-php\"}","refId":"A"}],"options":{"showTime":true,"showLabels":true,"wrapLogMessage":true,"sortOrder":"Descending","dedupStrategy":"none","enableLogDetails":true}}
+  ],
+  "annotations":{"list":[]},
+  "templating":{"list":[]},
+  "links":[],
+  "liveNow":false
+}

@@ -1,0 +1,85 @@
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+local.file_match "nginx_access" {
+  path_targets = [{
+    "__path__" = "/var/log/nginx/recipe-access.log",
+    "job" = "nginx",
+    "service" = "recipe",
+    "log_type" = "access",
+  }]
+  sync_period = "5s"
+}
+
+loki.source.file "nginx_access" {
+  targets       = local.file_match.nginx_access.targets
+  forward_to    = [loki.process.nginx_access.receiver]
+  tail_from_end = true
+}
+
+loki.process "nginx_access" {
+  stage.json {
+    expressions = {
+      status = "status",
+      method = "method",
+      uri    = "uri",
+    }
+  }
+  stage.labels {
+    values = {
+      status = "",
+      method = "",
+    }
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+local.file_match "nginx_error" {
+  path_targets = [{
+    "__path__" = "/var/log/nginx/recipe-error.log",
+    "job" = "nginx",
+    "service" = "recipe",
+    "log_type" = "error",
+  }]
+  sync_period = "5s"
+}
+
+loki.source.file "nginx_error" {
+  targets       = local.file_match.nginx_error.targets
+  forward_to    = [loki.write.default.receiver]
+  tail_from_end = true
+}
+
+local.file_match "recipe_php" {
+  path_targets = [{
+    "__path__" = "/var/log/recipe/app.log",
+    "job" = "recipe-php",
+    "service" = "recipe",
+    "log_type" = "application",
+  }]
+  sync_period = "5s"
+}
+
+loki.source.file "recipe_php" {
+  targets       = local.file_match.recipe_php.targets
+  forward_to    = [loki.process.recipe_php.receiver]
+  tail_from_end = true
+}
+
+loki.process "recipe_php" {
+  stage.json {
+    expressions = {
+      level   = "level",
+      message = "message",
+    }
+  }
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+  forward_to = [loki.write.default.receiver]
+}

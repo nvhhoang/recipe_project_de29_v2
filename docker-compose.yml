@@ -1,0 +1,235 @@
+services:
+  app:
+    build: ./app
+    container_name: recipe_v2_app
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE:-recipe_db}
+      DB_USER: ${MYSQL_USER:-recipe_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks: [frontend, backend]
+    expose: ["9000"]
+    volumes:
+      - ./app/public:/var/www/html:ro
+      - app_logs:/var/log/recipe
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/lib/php/sessions
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, KILL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+  nginx:
+    image: nginx:1.31.7-alpine
+    container_name: recipe_v2_nginx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./app/public:/var/www/html:ro
+      - nginx_logs:/var/log/nginx
+    depends_on: [app]
+    networks: [frontend, observability]
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE, SETUID, SETGID, CHOWN]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+
+  mysql:
+    image: mysql:8.4
+    container_name: recipe_v2_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-recipe_db}
+      MYSQL_USER: ${MYSQL_USER:-recipe_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQLD_EXPORTER_PASSWORD: ${MYSQLD_EXPORTER_PASSWORD:?Set MYSQLD_EXPORTER_PASSWORD in .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./mysql/02-metrics-exporter.sh:/docker-entrypoint-initdb.d/02-metrics-exporter.sh:ro
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 300
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: recipe_v2_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 2M
+      MEMORY_LIMIT: 256M
+      MAX_EXECUTION_TIME: 120
+    ports:
+      - "127.0.0.1:8083:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks: [frontend, backend]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 150
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    container_name: recipe_v2_prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+      - --web.external-url=http://localhost:9091/
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9091:9090"
+    networks:
+      frontend:
+        ipv4_address: 172.30.240.10
+      observability: {}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 150
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.5.0
+    container_name: recipe_v2_nginx_exporter
+    restart: unless-stopped
+    command: ["--nginx.scrape-uri=http://nginx/nginx_status"]
+    depends_on: [nginx]
+    networks:
+      frontend:
+        ipv4_address: 172.30.240.11
+      observability: {}
+    expose: ["9113"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 50
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.20.0
+    container_name: recipe_v2_mysqld_exporter
+    restart: unless-stopped
+    command: ["--mysqld.address=mysql:3306", "--mysqld.username=metrics_exporter"]
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: ${MYSQLD_EXPORTER_PASSWORD:?Set MYSQLD_EXPORTER_PASSWORD in .env}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks: [backend, observability]
+    expose: ["9104"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 50
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    container_name: recipe_v2_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks: [frontend, observability]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 300
+  loki:
+    image: grafana/loki:3.7.8
+    container_name: recipe_v2_loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    networks: [observability]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 150
+
+  alloy:
+    image: grafana/alloy:v1.20.1
+    container_name: recipe_v2_alloy
+    restart: unless-stopped
+    command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./monitoring/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - nginx_logs:/var/log/nginx:ro
+      - app_logs:/var/log/recipe:ro
+      - alloy_data:/var/lib/alloy/data
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on: [loki]
+    networks: [observability]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+
+networks:
+  frontend:
+    ipam:
+      config:
+        - subnet: 172.30.240.0/24
+  backend:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.241.0/24
+  observability:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.242.0/24
+
+volumes:
+  mysql_data:
+  nginx_logs:
+  app_logs:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  alloy_data:
