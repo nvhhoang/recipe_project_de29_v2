@@ -10,8 +10,8 @@ Dự án PHP + MySQL được triển khai bằng Docker Compose, có phpMyAdmin
 |---|---|
 | Website chia sẻ công thức | `app/public/index.php`: trang chủ, tìm kiếm, lọc danh mục, chi tiết món, nguyên liệu và các bước nấu; dữ liệu đọc trực tiếp từ MySQL. |
 | MySQL | `mysql/init.sql`: bảng `categories`, `recipes`, `ingredients`, `recipe_ingredients`, `recipe_steps`, `users` và dữ liệu mẫu. |
-| phpMyAdmin | Dịch vụ `phpmyadmin`, chỉ bind ở `127.0.0.1:8081`. |
-| GitHub | `.gitignore` loại trừ bí mật, README và cấu trúc sẵn sàng đưa lên GitHub. Repository cần được tạo/push từ tài khoản của bạn. |
+| phpMyAdmin | Dịch vụ `phpmyadmin`, chỉ bind ở `127.0.0.1:8083`. |
+| GitHub | `.gitignore` loại trừ bí mật, README và cấu trúc sẵn sàng đưa lên GitHub. Dự án được quản lý tại https://github.com/nvhhoang/recipe_project_de29_v2. |
 | Nginx reverse proxy | `nginx/default.conf`: Nginx nhận HTTP, chuyển PHP đến PHP-FPM, giới hạn kích thước request và thêm security headers. |
 | Prometheus + Grafana | Prometheus thu thập metrics từ app, Nginx exporter và MySQL exporter; Grafana có datasource và dashboard được provision sẵn. |
 | Loki + LogQL | Loki nhận log qua Grafana Alloy; log gồm Nginx access/error và log sự kiện ứng dụng PHP dạng JSON. Truy vấn bằng LogQL trong Grafana Explore. |
